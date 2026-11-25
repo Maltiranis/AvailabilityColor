@@ -1,59 +1,65 @@
-# Dispo – statut de disponibilité pour ton cercle de contacts
+# Dispo
 
-Chacun choisit son état (En ligne / Absent(e) / Occupé(e) / Hors ligne) + un texte optionnel.
-Seuls les membres de son cercle le voient.
+Une petite app pour dire à ses proches si on est dispo ou pas : en ligne, absent, occupé ou hors ligne,
+avec un petit texte si on veut préciser (« en réunion », « je mange »...). Seules les personnes de son cercle voient le statut.
 
-## Structure du projet
+Ça tourne dans le navigateur, sur PC comme sur téléphone, et ça s'installe sur l'écran d'accueil.
+
+## Les dossiers
+
+- `web/` : l'app (TypeScript + Vite)
+- `supabase/schema.sql` : la base de données et les règles d'accès
+- `windows/` et `android/` : à venir (widget Windows, app Android)
+
+## Lancer l'app chez soi
+
+Il faut Node.js. Ensuite, dans le dossier `web` :
+
 ```
-dispo-app/
-  supabase/schema.sql   ← base de données + règles de sécurité (étape 1, fait)
-  web/                  ← app web installable (PWA) (étape 2)
-  windows/              ← widget + icône barre système (étape 3)
-  android/              ← app + widget Android (étape 4)
+npm install
+npm run dev
 ```
-Tout est du texte : tu édites avec VS Code (gratuit) ou le Bloc-notes.
 
-## Étape 2 – L'app web (dossier `web/`)
-Prérequis : Node.js (installé). Dans un terminal, dossier `web/` :
-- `node node_modules/vite/bin/vite.js` → lance l'app sur http://localhost:5173 (rechargement automatique quand tu modifies un fichier)
-- `node node_modules/vite/bin/vite.js build` → produit le dossier `dist/` à mettre en ligne
-(Les commandes `npm run dev/build` ne marchent pas si le chemin du projet contient un `&`.)
+L'app est sur http://localhost:5173 et se recharge toute seule quand on modifie un fichier.
+Pour fabriquer la version à mettre en ligne : `npm run build` (le résultat est dans `web/dist`).
 
-Où modifier quoi : `src/app.ts` (écrans et logique), `src/style.css` (apparence), `src/supabase.ts` (états et couleurs),
-`src/config.ts` (URL + clé publique du serveur).
+Si ça plante, vérifier que le chemin du dossier ne contient pas de `&` : npm ne s'en sort pas sous Windows.
+Dans ce cas on peut lancer les outils directement avec `node node_modules/vite/bin/vite.js`.
 
-## Étape 1 – Créer le serveur gratuit (≈ 5 min, sans carte bancaire)
+Où toucher à quoi :
 
-1. Va sur https://supabase.com → **Start your project** → connecte-toi (GitHub ou e-mail).
-2. **New project** : nom `dispo`, mot de passe de base de données (garde-le dans ton gestionnaire de mots de passe),
-   région **Europe (Frankfurt ou Paris)**, plan **Free**.
-3. Attends ~2 min que le projet démarre.
-4. Menu **SQL Editor** → **New query** → colle tout le contenu de `supabase/schema.sql` → **Run**.
-   Tu dois voir « Success. No rows returned ».
-5. Menu **Authentication → Sign In / Providers → Email** :
-   - garde **Enable email provider** activé ;
-   - désactive **Confirm email** (l'envoi d'e-mails gratuit de Supabase est limité à 2 par heure,
-     ce qui bloquerait les inscriptions) ;
-   - mets **Minimum password length** à 10.
-6. Menu **Project Settings → API** : note
-   - **Project URL** (ex. `https://xxxx.supabase.co`)
-   - **anon public key** (clé « publique »)
+- `src/app.ts` : les écrans et ce qu'ils font
+- `src/style.css` : l'apparence
+- `src/supabase.ts` : les états et leurs couleurs
+- `src/config.ts` : l'adresse du serveur et sa clé publique
 
-   Envoie-moi ces deux valeurs. Elles sont faites pour être visibles dans l'app : la sécurité vient
-   des règles du `schema.sql`, pas du secret de cette clé.
+## Le serveur (Supabase)
 
-## ⚠️ Ne jamais partager
-- la clé **service_role** (donne tous les droits, ne doit jamais être dans l'app ni m'être envoyée) ;
-- le mot de passe de la base de données.
+Les comptes, les statuts et les photos sont stockés chez Supabase, avec l'offre gratuite (pas de carte bancaire).
 
-## À savoir (offre gratuite)
-- Un projet sans aucune activité pendant 7 jours est mis en pause ; un clic sur **Restore** le réveille.
-- Limites : 500 Mo de base, 1 Go de photos, 50 000 utilisateurs actifs/mois : très large pour un usage de cercles privés.
+1. Créer un compte sur https://supabase.com et un nouveau projet (région Europe, plan Free).
+2. Dans « SQL Editor », coller le contenu de `supabase/schema.sql` et lancer.
+3. Dans Authentication, section Sign In / Providers :
+   - laisser les inscriptions ouvertes (« Allow new users to sign up ») ;
+   - activer le fournisseur Email, et désactiver « Confirm email » (l'envoi de mails gratuit est limité à 2 par heure) ;
+   - mettre la longueur minimale du mot de passe à 10.
+4. Dans Project Settings > API, récupérer l'URL du projet et la clé publique (`anon` / `publishable`) et les mettre dans `web/src/config.ts`.
 
-## Comment la confidentialité est garantie
-- Toutes les tables ont la sécurité par ligne (RLS) : un utilisateur ne peut lire que ses données
-  et celles des gens dans son cercle, y compris pour le temps réel et les photos.
-- Les visiteurs non connectés n'ont accès à rien.
-- Les liens de contacts ne se créent que via un code d'invitation (10 caractères, 10 essais ratés max par heure)
-  et ne se suppriment que via la fonction dédiée (coupe dans les deux sens).
-- Ton code d'invitation n'est lisible que par toi ; tu peux le changer à tout moment.
+Ces deux valeurs peuvent rester dans le code, elles sont faites pour ça. Par contre, ne jamais y mettre
+la clé `service_role` ni le mot de passe de la base.
+
+Un projet gratuit est mis en pause après 7 jours sans activité. Un clic sur « Restore » dans le tableau de bord le relance.
+
+## Comment c'est protégé
+
+Toutes les tables ont la sécurité par ligne activée. Chacun ne peut lire que ses propres données et celles des gens de son cercle
+(profil, statut, photo, y compris pour les mises à jour en direct). Quelqu'un qui n'est pas connecté n'a accès à rien.
+
+On entre dans un cercle avec un code d'invitation de 10 caractères (ou le lien / QR code qui va avec).
+Au bout de 10 codes faux dans l'heure, c'est bloqué. Le code ne se voit que sur son propre compte et se change quand on veut.
+Retirer un contact coupe le lien des deux côtés.
+
+## Mise en ligne
+
+Le fichier `.github/workflows/deploy.yml` construit l'app et la publie sur GitHub Pages à chaque envoi sur `main`.
+Dans les réglages du dépôt, il faut mettre Pages > Source sur « GitHub Actions » (une seule fois).
